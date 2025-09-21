@@ -331,17 +331,9 @@
                             <option value="cyclocystoidea">Cyclocystoidea</option>
                         </select>
                     </div>
-                    <div class="control-group">
-                        <label for="mapSelect">Load Map Image:</label>
-                        <select id="mapSelect" onchange="loadSelectedMap()">
-                            <option value="">Select from images folder...</option>
-                        </select>
-                        <div class="help-text">Maps from your repository's images/ folder</div>
-                    </div>
                 </div>
                 <div class="button-group">
-                    <button class="btn btn-secondary" onclick="refreshMapList()">Refresh Map List</button>
-                    <button class="btn btn-primary" onclick="loadSelectedMap()">Load Selected Map</button>
+                    <button class="btn btn-primary" onclick="loadMapForCurrentAge()">Load Map for Selected Age</button>
                     <button class="btn btn-secondary" onclick="clearMap()">Clear Map</button>
                 </div>
                 <div id="currentDataset" class="help-text" style="margin-top: 10px; font-weight: bold;">
@@ -352,11 +344,6 @@
             <div class="github-info" style="display: none;">
             </div>
 
-            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                <p><strong>Click to upload your Blakey map image</strong></p>
-                <p>Or drag and drop an image file here</p>
-            </div>
-            <input type="file" id="fileInput" accept="image/*">
             <div id="uploadStatus"></div>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
@@ -446,53 +433,25 @@
         const REPO_OWNER = 'devonian-echinoderms';
         const REPO_NAME = 'paleomap';
         const BRANCH = 'main';
+        
+        // Hardwired map files for each Devonian age
+        const MAP_FILES = {
+            'lower': 'early-devonian-413mya-scotese.pdf',
+            'middle': 'middle-devonian-388mya-scotese.pdf',
+            'upper': 'late-devonian-370mya-scotese.pdf'
+        };
 
-        // File upload handling
-        const fileInput = document.getElementById('fileInput');
-        const uploadArea = document.querySelector('.upload-area');
+        // File upload handling - removed file upload, just keep for drag/drop on main image
         const mapImage = document.getElementById('mapImage');
         const noMapMessage = document.getElementById('noMapMessage');
-
-        fileInput.addEventListener('change', handleFileSelect);
-        uploadArea.addEventListener('dragover', handleDragOver);
-        uploadArea.addEventListener('drop', handleDrop);
 
         // Load saved configuration
         window.addEventListener('load', function() {
             updateCurrentDatasetDisplay();
-            refreshMapList(); // Load maps on startup
+            loadMapForCurrentAge(); // Auto-load map on startup
         });
 
-        function handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (file) loadMapImage(file);
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file && file.type.startsWith('image/')) {
-                loadMapImage(file);
-            }
-        }
-
-        function loadMapImage(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                mapImage.src = e.target.result;
-                mapImage.style.display = 'block';
-                noMapMessage.style.display = 'none';
-                mapImageLoaded = true;
-                showStatus('Map loaded successfully!', 'success');
-            };
-            reader.readAsDataURL(file);
-        }
+        // Remove file upload functions - maps are now hardwired
 
         function showStatus(message, type) {
             const statusDiv = document.getElementById('uploadStatus');
@@ -527,6 +486,9 @@
             // Update display
             updateCurrentDatasetDisplay();
             updateSyncStatus('info', 'Dataset changed - load or import data');
+            
+            // Auto-load the appropriate map for the new age
+            loadMapForCurrentAge();
         }
 
         function updateCurrentDatasetDisplay() {
@@ -536,75 +498,24 @@
         }
 
         // Map Management Functions
-        async function refreshMapList() {
-            try {
-                updateSyncStatus('pending', 'Loading maps...');
-                
-                // Use GitHub's public API to get images from the repository
-                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/images?ref=${BRANCH}`;
-                const response = await fetch(url);
-
-                if (response.status === 404) {
-                    showStatus('Images folder not found. Please create an "images" folder in your repository and add map images.', 'info');
-                    updateSyncStatus('info', 'No images folder found');
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error(`GitHub API error: ${response.status}`);
-                }
-
-                const files = await response.json();
-                availableMaps = files.filter(file => 
-                    file.type === 'file' && 
-                    /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file.name)
-                );
-
-                // Update dropdown
-                const mapSelect = document.getElementById('mapSelect');
-                mapSelect.innerHTML = '<option value="">Select from images folder...</option>';
-                
-                availableMaps.forEach(map => {
-                    const option = document.createElement('option');
-                    option.value = map.download_url;
-                    option.textContent = map.name;
-                    mapSelect.appendChild(option);
-                });
-
-                updateSyncStatus('info', `Found ${availableMaps.length} map images`);
-                showStatus(`Found ${availableMaps.length} map images in repository`, 'success');
-
-            } catch (error) {
-                console.error('Error loading maps:', error);
-                updateSyncStatus('error', 'Error loading maps');
-                showStatus(`Error loading maps: ${error.message}`, 'error');
-            }
-        }
-
-        function loadSelectedMap() {
-            const mapSelect = document.getElementById('mapSelect');
-            const selectedUrl = mapSelect.value;
+        function loadMapForCurrentAge() {
+            const mapFileName = MAP_FILES[currentDataset.age];
+            const mapUrl = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/images/${mapFileName}`;
             
-            if (!selectedUrl) {
-                showStatus('Please select a map from the dropdown first', 'error');
-                return;
-            }
-
-            mapImage.src = selectedUrl;
+            mapImage.src = mapUrl;
             mapImage.style.display = 'block';
             noMapMessage.style.display = 'none';
             mapImageLoaded = true;
             
-            const mapName = mapSelect.selectedOptions[0].text;
-            showStatus(`Loaded map: ${mapName}`, 'success');
-            updateSyncStatus('success', `Map loaded: ${mapName}`);
+            const ageText = document.getElementById('devonianAge').selectedOptions[0].text;
+            showStatus(`Loaded map: ${ageText}`, 'success');
+            updateSyncStatus('success', `Map loaded: ${ageText}`);
         }
 
         function clearMap() {
             mapImage.style.display = 'none';
             noMapMessage.style.display = 'block';
             mapImageLoaded = false;
-            document.getElementById('mapSelect').value = '';
             showStatus('Map cleared', 'info');
             updateSyncStatus('info', 'Ready - select map and dataset');
         }
