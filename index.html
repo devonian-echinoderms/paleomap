@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paleographic Map Tool - GitHub Edition</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #24292e, #586069);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .github-info {
+            background: #f6f8fa;
+            padding: 15px;
+            border-left: 4px solid #0366d6;
+            margin: 15px 0;
+        }
+        .controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+        }
+        .control-group input, .control-group select, .control-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .control-group textarea {
+            height: 60px;
+            resize: vertical;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .btn-primary {
+            background-color: #0366d6;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0253b3;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        .btn-github {
+            background-color: #24292e;
+            color: white;
+        }
+        .btn-github:hover {
+            background-color: #1b1f23;
+        }
+        .map-container {
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        .map-wrapper {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #mapImage {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        .data-point {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            border: 3px solid white;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        .data-point:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .data-point.fossil { background: #ff6b6b; }
+        .data-point.locality { background: #4ecdc4; }
+        .data-point.reference { background: #45b7d1; }
+        .data-point.formation { background: #96ceb4; }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .close:hover {
+            color: #000;
+        }
+        .data-points-list {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .data-point-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 3px;
+            border-left: 4px solid #007bff;
+        }
+        .data-point-item.fossil { border-left-color: #ff6b6b; }
+        .data-point-item.locality { border-left-color: #4ecdc4; }
+        .data-point-item.reference { border-left-color: #45b7d1; }
+        .data-point-item.formation { border-left-color: #96ceb4; }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .delete-btn:hover {
+            background: #c82333;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .upload-area:hover {
+            border-color: #0366d6;
+        }
+        .upload-area.dragover {
+            border-color: #0366d6;
+            background-color: #f0f8ff;
+        }
+        #fileInput {
+            display: none;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .config-section {
+            background: #f6f8fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e1e4e8;
+        }
+        .config-section h3 {
+            margin-top: 0;
+            color: #24292e;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #586069;
+            margin-top: 5px;
+        }
+        .sync-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .sync-status.synced {
+            background: #d4edda;
+            color: #155724;
+        }
+        .sync-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .sync-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Paleographic Map Tool - GitHub Edition</h1>
+            <p>Collaborative mapping with GitHub integration</p>
+            <div class="sync-status" id="syncStatus">Not Connected</div>
+        </div>
+
+        <div class="controls">
+            <div class="config-section">
+                <h3>📁 File Management</h3>
+                <div class="github-info">
+                    <strong>📝 Workflow:</strong>
+                    <ol>
+                        <li>Use this tool to add/edit data points</li>
+                        <li>Export your dataset using the buttons below</li>
+                        <li>Copy the JSON file to your GitHub repository's "data/" folder</li>
+                        <li>Share the GitHub Pages URL with collaborators</li>
+                        <li>Import JSON files from collaborators to merge their data</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3>🌍 Map & Dataset Selection</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="control-group">
+                        <label for="devonianAge">Devonian Age:</label>
+                        <select id="devonianAge" onchange="changeDataset()">
+                            <option value="lower">Lower Devonian</option>
+                            <option value="middle">Middle Devonian</option>
+                            <option value="upper">Upper Devonian</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="faunaType">Fauna Type:</label>
+                        <select id="faunaType" onchange="changeDataset()">
+                            <option value="asteroidea">Asteroidea</option>
+                            <option value="cephalopoda">Cephalopoda</option>
+                            <option value="crinoidea">Crinoidea</option>
+                            <option value="blastoidea">Blastoidea</option>
+                            <option value="cystoidea">Cystoidea</option>
+                            <option value="cyclocystoidea">Cyclocystoidea</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="mapSelect">Load Map Image:</label>
+                        <input type="file" id="mapFileInput" accept="image/*" onchange="loadMapFromFile()">
+                        <div class="help-text">Select a map image from your computer</div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="loadMapFromFile()">Load Selected Map</button>
+                    <button class="btn btn-secondary" onclick="clearMap()">Clear Map</button>
+                </div>
+                <div id="currentDataset" class="help-text" style="margin-top: 10px; font-weight: bold;">
+                    Current Dataset: Lower Devonian - Asteroidea
+                </div>
+            </div>
+
+            <div class="github-info" style="display: none;">
+            </div>
+
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <p><strong>Click to upload your Blakey map image</strong></p>
+                <p>Or drag and drop an image file here</p>
+            </div>
+            <input type="file" id="fileInput" accept="image/*">
+            <div id="uploadStatus"></div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+                <div class="control-group">
+                    <label for="pointTitle">Data Point Title:</label>
+                    <input type="text" id="pointTitle" placeholder="e.g., Urasterella locality">
+                </div>
+                <div class="control-group">
+                    <label for="pointType">Type:</label>
+                    <select id="pointType">
+                        <option value="fossil">Fossil Find</option>
+                        <option value="locality">Locality</option>
+                        <option value="reference">Reference Site</option>
+                        <option value="formation">Formation</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="pointDescription">Description/Notes:</label>
+                <textarea id="pointDescription" placeholder="Add description, coordinates, references, or file links..."></textarea>
+            </div>
+
+            <div class="control-group">
+                <label for="pointLink">Link (URL to PDF, image, or webpage):</label>
+                <input type="url" id="pointLink" placeholder="https://example.com/paper.pdf">
+            </div>
+
+            <div class="control-group">
+                <label for="pointAuthor">Added by:</label>
+                <input type="text" id="pointAuthor" placeholder="Your name">
+                <div class="help-text">This helps track who added what data</div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="toggleAddMode()">
+                    <span id="addModeText">Enable Add Mode</span>
+                </button>
+                <button class="btn btn-secondary" onclick="exportData()">Export Dataset</button>
+                <button class="btn btn-secondary" onclick="importData()">Import Dataset</button>
+                <button class="btn btn-success" onclick="showDataPoints()">View All Points</button>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div class="map-wrapper">
+                <img id="mapImage" src="" alt="Upload a map to get started" style="display: none;">
+                <div id="noMapMessage" style="padding: 60px; color: #666; border: 2px dashed #ccc; border-radius: 8px;">
+                    <h3>No Map Loaded</h3>
+                    <p>Upload a Blakey paleogeographic map image above to get started</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-points-list" id="dataPointsList" style="display: none;">
+            <h3>Data Points</h3>
+            <div id="pointsContainer"></div>
+        </div>
+    </div>
+
+    <!-- Modal for viewing point details -->
+    <div id="pointModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Point Details</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let dataPoints = [];
+        let addMode = false;
+        let mapImageLoaded = false;
+        
+        // Current dataset configuration
+        let currentDataset = {
+            age: 'lower',
+            fauna: 'asteroidea'
+        };
+
+        // File upload handling
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.querySelector('.upload-area');
+        const mapImage = document.getElementById('mapImage');
+        const noMapMessage = document.getElementById('noMapMessage');
+
+        fileInput.addEventListener('change', handleFileSelect);
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleDrop);
+
+        // Load saved configuration
+        window.addEventListener('load', function() {
+            updateCurrentDatasetDisplay();
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) loadMapImage(file);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                loadMapImage(file);
+            }
+        }
+
+        function loadMapImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                mapImage.src = e.target.result;
+                mapImage.style.display = 'block';
+                noMapMessage.style.display = 'none';
+                mapImageLoaded = true;
+                showStatus('Map loaded successfully!', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            setTimeout(() => statusDiv.innerHTML = '', 5000);
+        }
+
+        function updateSyncStatus(status, message) {
+            const statusEl = document.getElementById('syncStatus');
+            statusEl.className = `sync-status ${status}`;
+            statusEl.textContent = message;
+        }
+
+        // Dataset Management Functions
+        function changeDataset() {
+            // Save current dataset before switching
+            if (dataPoints.length > 0) {
+                const confirmSwitch = confirm('You have unsaved data points. Do you want to export them before switching datasets?');
+                if (confirmSwitch) {
+                    exportData();
+                }
+            }
+
+            // Update current dataset
+            currentDataset.age = document.getElementById('devonianAge').value;
+            currentDataset.fauna = document.getElementById('faunaType').value;
+            
+            // Clear current data points
+            dataPoints = [];
+            renderDataPoints();
+            
+            // Update display
+            updateCurrentDatasetDisplay();
+            updateSyncStatus('info', 'Dataset changed - load or import data');
+        }
+
+        function updateCurrentDatasetDisplay() {
+            const ageText = document.getElementById('devonianAge').selectedOptions[0].text;
+            const faunaText = document.getElementById('faunaType').selectedOptions[0].text;
+            document.getElementById('currentDataset').textContent = `Current Dataset: ${ageText} - ${faunaText}`;
+        }
+
+        // Map Management Functions
+        function loadMapFromFile() {
+            const fileInput = document.getElementById('mapFileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showStatus('Please select a map image file first', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                mapImage.src = e.target.result;
+                mapImage.style.display = 'block';
+                noMapMessage.style.display = 'none';
+                mapImageLoaded = true;
+                showStatus(`Loaded map: ${file.name}`, 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearMap() {
+            mapImage.style.display = 'none';
+            noMapMessage.style.display = 'block';
+            mapImageLoaded = false;
+            document.getElementById('mapFileInput').value = '';
+            showStatus('Map cleared', 'info');
+        }
+
+        // Remove GitHub API functions - now using manual file management
+
+        function toggleAddMode() {
+            addMode = !addMode;
+            const button = document.getElementById('addModeText');
+            if (addMode) {
+                button.textContent = 'Exit Add Mode';
+                showStatus('Click on the map to add data points', 'success');
+            } else {
+                button.textContent = 'Enable Add Mode';
+            }
+        }
+
+        // Map click handling
+        mapImage.addEventListener('click', function(e) {
+            if (!addMode || !mapImageLoaded) return;
+
+            const rect = mapImage.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+            addDataPoint(x, y);
+        });
+
+        function addDataPoint(x, y) {
+            const title = document.getElementById('pointTitle').value || 'Unnamed Point';
+            const type = document.getElementById('pointType').value;
+            const description = document.getElementById('pointDescription').value;
+            const link = document.getElementById('pointLink').value;
+            const author = document.getElementById('pointAuthor').value || 'Anonymous';
+
+            const point = {
+                id: Date.now(),
+                x: x,
+                y: y,
+                title: title,
+                type: type,
+                description: description,
+                link: link,
+                author: author,
+                dateAdded: new Date().toISOString()
+            };
+
+            dataPoints.push(point);
+            renderDataPoints();
+            clearForm();
+            updateSyncStatus('info', 'Unsaved changes - export when ready');
+        }
+
+        function renderDataPoints() {
+            // Remove existing points
+            document.querySelectorAll('.data-point').forEach(el => el.remove());
+
+            // Add new points
+            dataPoints.forEach(point => {
+                const pointEl = document.createElement('div');
+                pointEl.className = `data-point ${point.type}`;
+                pointEl.style.left = point.x + '%';
+                pointEl.style.top = point.y + '%';
+                pointEl.title = `${point.title} (by ${point.author || 'Unknown'})`;
+                pointEl.onclick = () => showPointDetails(point);
+
+                document.querySelector('.map-wrapper').appendChild(pointEl);
+            });
+        }
+
+        function showPointDetails(point) {
+            document.getElementById('modalTitle').textContent = point.title;
+            
+            let content = `
+                <p><strong>Type:</strong> ${point.type}</p>
+                <p><strong>Position:</strong> ${point.x.toFixed(2)}%, ${point.y.toFixed(2)}%</p>
+                <p><strong>Added by:</strong> ${point.author || 'Unknown'}</p>
+                <p><strong>Date:</strong> ${point.dateAdded ? new Date(point.dateAdded).toLocaleDateString() : 'Unknown'}</p>
+            `;
+            
+            if (point.description) {
+                content += `<p><strong>Description:</strong><br>${point.description.replace(/\n/g, '<br>')}</p>`;
+            }
+            
+            if (point.link) {
+                content += `<p><strong>Link:</strong> <a href="${point.link}" target="_blank">${point.link}</a></p>`;
+            }
+            
+            document.getElementById('modalContent').innerHTML = content;
+            document.getElementById('pointModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('pointModal').style.display = 'none';
+        }
+
+        function clearForm() {
+            document.getElementById('pointTitle').value = '';
+            document.getElementById('pointDescription').value = '';
+            document.getElementById('pointLink').value = '';
+        }
+
+        function exportData() {
+            const ageText = document.getElementById('devonianAge').selectedOptions[0].text;
+            const faunaText = document.getElementById('faunaType').selectedOptions[0].text;
+            
+            const data = {
+                dataset: {
+                    age: currentDataset.age,
+                    fauna: currentDataset.fauna,
+                    ageText: ageText,
+                    faunaText: faunaText
+                },
+                dataPoints: dataPoints,
+                exported: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `paleo-${currentDataset.age}-${currentDataset.fauna}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            
+                            // Check if this data matches current dataset
+                            if (data.dataset && data.dataset.age && data.dataset.fauna) {
+                                if (data.dataset.age !== currentDataset.age || data.dataset.fauna !== currentDataset.fauna) {
+                                    const switchDataset = confirm(
+                                        `This file contains data for ${data.dataset.ageText || data.dataset.age} - ${data.dataset.faunaText || data.dataset.fauna}. ` +
+                                        `Do you want to switch to that dataset?`
+                                    );
+                                    if (switchDataset) {
+                                        document.getElementById('devonianAge').value = data.dataset.age;
+                                        document.getElementById('faunaType').value = data.dataset.fauna;
+                                        changeDataset();
+                                    }
+                                }
+                            }
+                            
+                            dataPoints = data.dataPoints || [];
+                            renderDataPoints();
+                            showStatus('Data imported successfully!', 'success');
+                            updateSyncStatus('info', 'Data loaded - add points or export');
+                        } catch (error) {
+                            showStatus('Error importing data: Invalid file format', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        function showDataPoints() {
+            const listEl = document.getElementById('dataPointsList');
+            const container = document.getElementById('pointsContainer');
+            
+            if (dataPoints.length === 0) {
+                container.innerHTML = '<p>No data points added yet.</p>';
+            } else {
+                container.innerHTML = dataPoints.map(point => `
+                    <div class="data-point-item ${point.type}">
+                        <div>
+                            <strong>${point.title}</strong> (${point.type})
+                            <br><small>${point.x.toFixed(1)}%, ${point.y.toFixed(1)}% • Added by ${point.author || 'Unknown'}</small>
+                        </div>
+                        <button class="delete-btn" onclick="deletePoint(${point.id})">Delete</button>
+                    </div>
+                `).join('');
+            }
+            
+            listEl.style.display = listEl.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function deletePoint(id) {
+            dataPoints = dataPoints.filter(point => point.id !== id);
+            renderDataPoints();
+            showDataPoints(); // Refresh the list
+            updateSyncStatus('info', 'Unsaved changes - export when ready');
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('pointModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Initialize status
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSyncStatus('info', 'Ready - select dataset and load map');
+        });
+    </script>
+</body>
+</html>
