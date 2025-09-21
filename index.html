@@ -333,12 +333,15 @@
                     </div>
                     <div class="control-group">
                         <label for="mapSelect">Load Map Image:</label>
-                        <input type="file" id="mapFileInput" accept="image/*" onchange="loadMapFromFile()">
-                        <div class="help-text">Select a map image from your computer</div>
+                        <select id="mapSelect" onchange="loadSelectedMap()">
+                            <option value="">Select from images folder...</option>
+                        </select>
+                        <div class="help-text">Maps from your repository's images/ folder</div>
                     </div>
                 </div>
                 <div class="button-group">
-                    <button class="btn btn-primary" onclick="loadMapFromFile()">Load Selected Map</button>
+                    <button class="btn btn-secondary" onclick="refreshMapList()">Refresh Map List</button>
+                    <button class="btn btn-primary" onclick="loadSelectedMap()">Load Selected Map</button>
                     <button class="btn btn-secondary" onclick="clearMap()">Clear Map</button>
                 </div>
                 <div id="currentDataset" class="help-text" style="margin-top: 10px; font-weight: bold;">
@@ -435,6 +438,14 @@
             age: 'lower',
             fauna: 'asteroidea'
         };
+        
+        // Available maps
+        let availableMaps = [];
+        
+        // Repository configuration - you can edit these
+        const REPO_OWNER = 'devonian-echinoderms';
+        const REPO_NAME = 'paleomap';
+        const BRANCH = 'main';
 
         // File upload handling
         const fileInput = document.getElementById('fileInput');
@@ -449,6 +460,7 @@
         // Load saved configuration
         window.addEventListener('load', function() {
             updateCurrentDatasetDisplay();
+            refreshMapList(); // Load maps on startup
         });
 
         function handleFileSelect(e) {
@@ -524,32 +536,77 @@
         }
 
         // Map Management Functions
-        function loadMapFromFile() {
-            const fileInput = document.getElementById('mapFileInput');
-            const file = fileInput.files[0];
+        async function refreshMapList() {
+            try {
+                updateSyncStatus('pending', 'Loading maps...');
+                
+                // Use GitHub's public API to get images from the repository
+                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/images?ref=${BRANCH}`;
+                const response = await fetch(url);
+
+                if (response.status === 404) {
+                    showStatus('Images folder not found. Please create an "images" folder in your repository and add map images.', 'info');
+                    updateSyncStatus('info', 'No images folder found');
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`GitHub API error: ${response.status}`);
+                }
+
+                const files = await response.json();
+                availableMaps = files.filter(file => 
+                    file.type === 'file' && 
+                    /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file.name)
+                );
+
+                // Update dropdown
+                const mapSelect = document.getElementById('mapSelect');
+                mapSelect.innerHTML = '<option value="">Select from images folder...</option>';
+                
+                availableMaps.forEach(map => {
+                    const option = document.createElement('option');
+                    option.value = map.download_url;
+                    option.textContent = map.name;
+                    mapSelect.appendChild(option);
+                });
+
+                updateSyncStatus('info', `Found ${availableMaps.length} map images`);
+                showStatus(`Found ${availableMaps.length} map images in repository`, 'success');
+
+            } catch (error) {
+                console.error('Error loading maps:', error);
+                updateSyncStatus('error', 'Error loading maps');
+                showStatus(`Error loading maps: ${error.message}`, 'error');
+            }
+        }
+
+        function loadSelectedMap() {
+            const mapSelect = document.getElementById('mapSelect');
+            const selectedUrl = mapSelect.value;
             
-            if (!file) {
-                showStatus('Please select a map image file first', 'error');
+            if (!selectedUrl) {
+                showStatus('Please select a map from the dropdown first', 'error');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                mapImage.src = e.target.result;
-                mapImage.style.display = 'block';
-                noMapMessage.style.display = 'none';
-                mapImageLoaded = true;
-                showStatus(`Loaded map: ${file.name}`, 'success');
-            };
-            reader.readAsDataURL(file);
+            mapImage.src = selectedUrl;
+            mapImage.style.display = 'block';
+            noMapMessage.style.display = 'none';
+            mapImageLoaded = true;
+            
+            const mapName = mapSelect.selectedOptions[0].text;
+            showStatus(`Loaded map: ${mapName}`, 'success');
+            updateSyncStatus('success', `Map loaded: ${mapName}`);
         }
 
         function clearMap() {
             mapImage.style.display = 'none';
             noMapMessage.style.display = 'block';
             mapImageLoaded = false;
-            document.getElementById('mapFileInput').value = '';
+            document.getElementById('mapSelect').value = '';
             showStatus('Map cleared', 'info');
+            updateSyncStatus('info', 'Ready - select map and dataset');
         }
 
         // Remove GitHub API functions - now using manual file management
